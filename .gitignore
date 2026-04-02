@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Plugin data (server runtime)
+plugins/
+
+# Local JAR output
+*.jar
+!gradle/wrapper/gradle-wrapper.jar

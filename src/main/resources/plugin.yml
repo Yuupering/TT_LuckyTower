@@ -1,0 +1,17 @@
+name: TT_LuckyTower
+version: '${version}'
+main: org.thetower.tt_luckytower.LuckyTowerPlugin
+api-version: '1.20'
+authors: [ TheTower ]
+depend: [ WorldGuard, Vault ]
+softdepend: [ MMOItems ]
+
+commands:
+  luckytower:
+    description: '럭키타워 관리 커맨드'
+    aliases: [ lt ]
+    usage: /<command> <reload|stop|info|setblock|start>
+    permission: tt.luckytower.admin
+  확률표:
+    description: '현재 리전 타워의 층별 확률 표시'
+    usage: /<command> [타워ID]

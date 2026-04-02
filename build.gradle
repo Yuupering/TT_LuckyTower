@@ -1,0 +1,58 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.thetower'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "papermc-repo"
+        url = "https://repo.papermc.io/repository/maven-public/"
+    }
+    maven { url = "https://maven.enginehub.org/repo/" }
+    maven { url = 'https://nexus.phoenixdevt.fr/repository/maven-public/' }
+    maven { url = 'https://jitpack.io' }
+    maven { url = 'https://mvn.lumine.io/repository/maven-public/' }
+}
+
+dependencies {
+    compileOnly "io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT"
+    compileOnly "com.sk89q.worldguard:worldguard-bukkit:7.0.9"
+    compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
+    compileOnly 'io.lumine:MythicLib-dist:1.6-SNAPSHOT'
+    compileOnly 'net.Indyuce:MMOItems-API:6.9.4-20230709.125533-20'
+    compileOnly 'com.github.decentsoftware-eu:decentholograms:2.8.9'
+}
+
+def targetJavaVersion = 17
+java {
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        options.release.set(targetJavaVersion)
+    }
+    options.encoding = "UTF-8"
+}
+
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}
+
+jar {
+    archiveFileName = 'TT_LuckyTower-1.0-SNAPSHOT.jar'
+    destinationDirectory.set(new File("C:\\Users\\user\\Desktop\\nebula"))
+}

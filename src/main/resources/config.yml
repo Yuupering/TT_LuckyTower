@@ -1,0 +1,254 @@
+# =============================================
+# TT_LuckyTower 설정 파일
+# =============================================
+
+settings:
+  # 실패 시 전체 누적 보상 획득 확률 (나머지 % = 현재 층 보상만 획득 후 초기화)
+  fail-full-reward-chance: 80
+  # 층계 간 딜레이 (틱, 20틱 = 1초)
+  floor-delay-ticks: 40
+  # 게임 시작 전 카운트다운 딜레이 (틱)
+  start-delay-ticks: 60
+
+# 타워 목록
+towers:
+  main:
+    # WorldGuard 리전 이름
+    region: "lucky_tower"
+
+    # 상호작용 블록 (우클릭 시 GUI 오픈)
+    interaction-block:
+      world: "world"
+      x: 0
+      y: 64
+      z: 0
+
+    # 입장료 (Vault 화폐)
+    entry-fee-vault: 5000
+
+    # ─── 잭팟 설정 ───
+    jackpot:
+      enabled: true
+      # 잭팟 초기 금액 (jackpot_data.yml에 저장된 값이 없을 때만 적용)
+      initial-amount: 50000.0
+      # 입장료 중 잭팟 풀에 적립되는 비율 (%)
+      contribution-percent: 10.0
+      # 홀로그램 표시 위치 (/lt jackpot sethologram <타워ID> 로 인게임 설정 가능)
+      hologram:
+        world: "world"
+        x: 0
+        y: 65
+        z: 0
+      # 잭팟 당첨 시 실행 보상 ({player}=당첨자 이름, {amount}=지급 금액)
+      winner-rewards:
+        commands:
+          - "broadcast §6§l★ [럭키타워 잭팟] §f{player}§e님이 §f{amount} §e잭팟을 터뜨렸습니다!"
+        # 구역 내 모든 플레이어에게 지급되는 아이템
+        items:
+          - material: DIAMOND
+            amount: 3
+
+    # 확률 부스트 아이템 (도전 전 투입, 소모됨)
+    boost-items:
+      - material: IRON_BLOCK
+        amount: 64
+        boost: 5.0   # 전 층 성공확률 +5%
+      - material: QUARTZ_BLOCK
+        amount: 32
+        boost: 3.0   # 전 층 성공확률 +3%
+
+    # 층계 설정 (0 ~ 14층, 총 15층)
+    floors:
+      0:
+        reset-floor: true   # 리셋 층계 여부 (도달 시 누적 보상 초기화)
+        success: 85
+        fail: 15
+        reset: 0
+        # 잭팟 판정 (reset-floor: true 인 층에서만 작동)
+        jackpot-chance: 0.0      # 0층(시작층)은 잭팟 없음
+        jackpot-payout: 0.0
+        rewards:
+          - type: VAULT
+            amount: 500
+        region-buffs: []
+        # 해당 층 레드스톤 램프 좌표 목록 (서버에서 /lt setblock <타워> <층> 으로 설정 가능)
+        lights: []
+
+      1:
+        reset-floor: false
+        success: 75
+        fail: 25
+        reset: 0
+        rewards:
+          - type: ITEM
+            material: GOLD_INGOT
+            amount: 5
+        region-buffs: []
+        lights: []
+
+      2:
+        reset-floor: false
+        success: 75
+        fail: 20
+        reset: 5
+        rewards:
+          - type: VAULT
+            amount: 1000
+        region-buffs: []
+        lights: []
+
+      3:
+        reset-floor: false
+        success: 75
+        fail: 20
+        reset: 5
+        rewards:
+          - type: ITEM
+            material: DIAMOND
+            amount: 3
+        region-buffs: []
+        lights: []
+
+      4:
+        reset-floor: false
+        success: 75
+        fail: 20
+        reset: 5
+        rewards:
+          - type: VAULT
+            amount: 2000
+        region-buffs: []
+        lights: []
+
+      5:
+        reset-floor: true
+        success: 70
+        fail: 20
+        reset: 10
+        # 5층 리셋 층계 잭팟: 5% 확률로 잭팟 풀의 30% 지급
+        jackpot-chance: 5.0
+        jackpot-payout: 30.0
+        rewards:
+          - type: ITEM
+            material: DIAMOND
+            amount: 5
+        region-buffs:
+          - effect: SPEED
+            amplifier: 1
+            duration: 300   # 초
+        lights: []
+
+      6:
+        reset-floor: false
+        success: 60
+        fail: 30
+        reset: 10
+        rewards:
+          - type: VAULT
+            amount: 3000
+        region-buffs: []
+        lights: []
+
+      7:
+        reset-floor: false
+        success: 60
+        fail: 30
+        reset: 10
+        rewards:
+          - type: ITEM
+            material: EMERALD
+            amount: 5
+        region-buffs: []
+        lights: []
+
+      8:
+        reset-floor: false
+        success: 55
+        fail: 30
+        reset: 15
+        rewards:
+          - type: VAULT
+            amount: 5000
+        region-buffs: []
+        lights: []
+
+      9:
+        reset-floor: false
+        success: 55
+        fail: 30
+        reset: 15
+        rewards:
+          - type: ITEM
+            material: NETHERITE_INGOT
+            amount: 1
+        region-buffs: []
+        lights: []
+
+      10:
+        reset-floor: true
+        success: 50
+        fail: 30
+        reset: 20
+        # 10층 리셋 층계 잭팟: 10% 확률로 잭팟 풀의 60% 지급
+        jackpot-chance: 10.0
+        jackpot-payout: 60.0
+        rewards:
+          - type: ITEM
+            material: NETHERITE_INGOT
+            amount: 2
+        region-buffs:
+          - effect: STRENGTH
+            amplifier: 0
+            duration: 300
+        lights: []
+
+      11:
+        reset-floor: false
+        success: 45
+        fail: 35
+        reset: 20
+        rewards:
+          - type: VAULT
+            amount: 8000
+        region-buffs: []
+        lights: []
+
+      12:
+        reset-floor: false
+        success: 40
+        fail: 35
+        reset: 25
+        rewards:
+          - type: ITEM
+            material: NETHERITE_INGOT
+            amount: 3
+        region-buffs: []
+        lights: []
+
+      13:
+        reset-floor: false
+        success: 35
+        fail: 40
+        reset: 25
+        rewards:
+          - type: VAULT
+            amount: 10000
+        region-buffs: []
+        lights: []
+
+      14:
+        reset-floor: false
+        success: 30
+        fail: 40
+        reset: 30
+        rewards:
+          - type: MMOITEM
+            mmoitem-type: SWORD
+            mmoitem-id: LEGENDARY_SWORD
+          - type: COMMAND
+            command: "give {player} diamond 64"
+        region-buffs:
+          - effect: JUMP_BOOST
+            amplifier: 2
+            duration: 600
+        lights: []
