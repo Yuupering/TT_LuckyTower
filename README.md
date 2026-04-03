@@ -50,7 +50,6 @@
 ### 필수
 | 플러그인 | 버전 | 용도 |
 |----------|------|------|
-| [Paper](https://papermc.io/) | 1.20.1 | 서버 API |
 | [WorldGuard](https://dev.bukkit.org/projects/worldguard) | 7.0.9+ | 리전 관리 |
 | [Vault](https://www.spigotmc.org/resources/vault.34315/) | 1.7.1+ | 경제 시스템 |
 
