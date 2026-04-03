@@ -11,6 +11,9 @@ settings:
   floor-delay-ticks: 40
   # 게임 시작 전 카운트다운 딜레이 (틱)
   start-delay-ticks: 60
+  # 슈퍼 티켓 활성화 여부 (true = 활성화)
+  # 슈퍼 티켓: 무료 입장 + 성공 확률 +10% / 기존 부스트 아이템과 중첩 불가
+  super-ticket-enabled: true
 
 # 타워 목록
 towers:

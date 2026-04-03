@@ -56,4 +56,29 @@ public class UserDataManager {
         save(uuid, config);
         return true;
     }
+
+    // ── 슈퍼 티켓 ──
+
+    public int getSuperTickets(UUID uuid) {
+        return load(uuid).getInt("super-tickets", 0);
+    }
+
+    public void addSuperTickets(UUID uuid, int amount) {
+        YamlConfiguration config = load(uuid);
+        int current = config.getInt("super-tickets", 0);
+        config.set("super-tickets", current + amount);
+        save(uuid, config);
+    }
+
+    /**
+     * 슈퍼 티켓 1장 소모. 보유 중이면 차감 후 true, 없으면 false.
+     */
+    public boolean useSuperTicket(UUID uuid) {
+        YamlConfiguration config = load(uuid);
+        int current = config.getInt("super-tickets", 0);
+        if (current <= 0) return false;
+        config.set("super-tickets", current - 1);
+        save(uuid, config);
+        return true;
+    }
 }

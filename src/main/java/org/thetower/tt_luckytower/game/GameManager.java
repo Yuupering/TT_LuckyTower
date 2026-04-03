@@ -46,10 +46,22 @@ public class GameManager {
             return false;
         }
 
-        // 티켓 보유 시 무료 입장
-        boolean usedTicket = plugin.getUserDataManager().useTicket(player.getUniqueId());
+        // ① 슈퍼 티켓 우선 체크 (config에서 활성화된 경우)
+        boolean superTicketEnabled = plugin.getConfig().getBoolean("settings.super-ticket-enabled", true);
+        boolean usedSuperTicket = false;
+        boolean usedTicket = false;
 
-        if (!usedTicket) {
+        if (superTicketEnabled) {
+            usedSuperTicket = plugin.getUserDataManager().useSuperTicket(player.getUniqueId());
+        }
+
+        // ② 슈퍼 티켓 없으면 일반 티켓 체크
+        if (!usedSuperTicket) {
+            usedTicket = plugin.getUserDataManager().useTicket(player.getUniqueId());
+        }
+
+        // ③ 티켓 없으면 입장료 확인
+        if (!usedSuperTicket && !usedTicket) {
             if (!plugin.getVaultHook().has(player, tower.getEntryFeeVault())) {
                 player.sendMessage("§c잔액 부족! 입장료: §f"
                         + plugin.getVaultHook().format(tower.getEntryFeeVault()));
@@ -57,22 +69,31 @@ public class GameManager {
             }
         }
 
-        // 선택된 부스트 아이템 소모
+        // 부스트 계산
+        // 슈퍼 티켓 사용 시 → 확률 +10% 고정, 부스트 아이템 소모 없음 (중첩 불가)
+        // 일반 티켓/유료 입장 시 → 선택한 부스트 아이템 소모
         double boostPercent = 0.0;
-        List<BoostItem> boostItems = tower.getBoostItems();
-        for (int idx : selectedBoostIndices) {
-            if (idx < 0 || idx >= boostItems.size()) continue;
-            BoostItem bi = boostItems.get(idx);
-            if (hasEnoughItems(player, bi)) {
-                removeItems(player, bi);
-                boostPercent += bi.getBoost();
-                player.sendMessage("§a[럭키타워] 부스트 적용: §f"
-                        + bi.getMaterial().name() + " x" + bi.getAmount()
-                        + " §7(§a+" + bi.getBoost() + "%§7)");
+        if (usedSuperTicket) {
+            boostPercent = 10.0;
+        } else {
+            List<BoostItem> boostItems = tower.getBoostItems();
+            for (int idx : selectedBoostIndices) {
+                if (idx < 0 || idx >= boostItems.size()) continue;
+                BoostItem bi = boostItems.get(idx);
+                if (hasEnoughItems(player, bi)) {
+                    removeItems(player, bi);
+                    boostPercent += bi.getBoost();
+                    player.sendMessage("§a[럭키타워] 부스트 적용: §f"
+                            + bi.getMaterial().name() + " x" + bi.getAmount()
+                            + " §7(§a+" + bi.getBoost() + "%§7)");
+                }
             }
         }
 
-        if (usedTicket) {
+        if (usedSuperTicket) {
+            int remaining = plugin.getUserDataManager().getSuperTickets(player.getUniqueId());
+            player.sendMessage("§6[럭키타워] ★ 슈퍼 티켓 사용! 무료 입장 + 성공 확률 §a+10% §6적용 §7(남은 슈퍼 티켓: §f" + remaining + "장§7)");
+        } else if (usedTicket) {
             int remaining = plugin.getUserDataManager().getTickets(player.getUniqueId());
             player.sendMessage("§a[럭키타워] 티켓 사용! 무료 입장 §7(남은 티켓: §f" + remaining + "장§7)");
         } else {
