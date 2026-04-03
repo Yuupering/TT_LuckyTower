@@ -131,8 +131,8 @@ public class JackpotManager {
         double poolTotal = jackpotAmounts.getOrDefault(gk, jc.getInitialAmount());
         double payout = poolTotal * floor.getJackpotPayoutPercent() / 100.0;
 
-        // 금액 차감
-        jackpotAmounts.put(gk, Math.max(0, poolTotal - payout));
+        // 금액 차감 (initial-amount 미만으로 내려가지 않음)
+        jackpotAmounts.put(gk, Math.max(jc.getInitialAmount(), poolTotal - payout));
         saveData();
         updateHologramsForGroup(gk);
 
@@ -146,6 +146,32 @@ public class JackpotManager {
                 + " (그룹: " + gk + ")"
                 + " / " + floorNumber + "층 / 지급: " + payout);
         return true;
+    }
+
+    /**
+     * 마지막 층 클리어 시 100% 확률로 잭팟 지급.
+     * last-floor-payout 설정값만큼 풀에서 차감.
+     */
+    public void triggerLastFloorJackpot(Player player, String towerId) {
+        TowerConfig tower = plugin.getTowerManager().getTower(towerId);
+        if (tower == null) return;
+        JackpotTowerConfig jc = tower.getJackpotConfig();
+        if (!jc.isEnabled()) return;
+
+        String gk = tower.getGroupId();
+        double poolTotal = jackpotAmounts.getOrDefault(gk, jc.getInitialAmount());
+        double payout = poolTotal * jc.getLastFloorJackpotPayout() / 100.0;
+
+        // 금액 차감 (initial-amount 미만으로 내려가지 않음)
+        jackpotAmounts.put(gk, Math.max(jc.getInitialAmount(), poolTotal - payout));
+        saveData();
+        updateHologramsForGroup(gk);
+
+        plugin.getVaultHook().deposit(player, payout);
+        triggerWinnerRewards(player, tower, payout);
+
+        plugin.getLogger().info("[잭팟-완주] " + player.getName() + " → " + towerId
+                + " / 지급: " + payout + " (" + jc.getLastFloorJackpotPayout() + "%)");
     }
 
     private void triggerWinnerRewards(Player winner, TowerConfig tower, double payout) {

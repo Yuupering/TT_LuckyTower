@@ -67,22 +67,21 @@ public class ChartCommand implements CommandExecutor, TabCompleter {
     // ──────────────────── 확률표 출력 ────────────────────
 
     private void printChart(Player player, TowerConfig tower) {
-        // 플레이어 보유 부스트 계산 (소모 안 함)
-        double boost = calcPlayerBoost(player, tower);
+        // 손에 든 아이템이 이 타워의 부스트 아이템과 일치하는지 확인
+        BoostItem heldBoost = getHeldBoostItem(player, tower);
+        double boost = (heldBoost != null) ? heldBoost.getBoost() : 0;
 
         // ── 헤더 ──
-        player.sendMessage("§6━━━━━━ [ " + tower.getId() + " 확률표 ] ━━━━━━");
-        player.sendMessage("§7리전: §f" + tower.getRegionId()
-                + "  §7그룹: §f" + tower.getGroupId()
+        player.sendMessage("§6§m                                              ");
+        player.sendMessage("§6  [ " + tower.getId() + " ]  §7리전: §f" + tower.getRegionId()
                 + "  §7입장료: §f" + plugin.getVaultHook().format(tower.getEntryFeeVault()));
-
         if (boost > 0) {
-            player.sendMessage("§e※ 부스트 §a+" + String.format("%.1f", boost)
-                    + "% §e보유 중 → 실패 확률에서 차감, 성공 확률 증가 (1판 소모)");
-            player.sendMessage("§7   (괄호 안 = 부스트 적용 시 확률)");
+            player.sendMessage("§e  ※ §f" + heldBoost.getMaterial().name()
+                    + " §e부스트 +" + String.format("%.1f", boost) + "% 적용 중");
         }
-
-        player.sendMessage("§7§m                                        ");
+        // 컬럼 헤더
+        player.sendMessage(String.format("§7  %-12s §a%-14s §c%-14s §5%-10s", "층", "성공 확률", "실패 확률", "리셋 확률"));
+        player.sendMessage("§7§m                                              ");
 
         // ── 층별 출력 ──
         for (var entry : tower.getFloors().entrySet()) {
@@ -93,49 +92,46 @@ public class ChartCommand implements CommandExecutor, TabCompleter {
             int rawF = floor.getFailChance();
             int rawR = floor.getResetChance();
 
-            StringBuilder line = new StringBuilder();
-
-            // 층 번호 & 리셋 구간 표시
-            if (floor.isResetFloor()) {
-                line.append("§d[리셋]");
-            } else {
-                line.append("§7      ");
-            }
-            line.append(String.format("§f %2d층  ", floorNum));
-
+            String sVal, fVal, rVal;
             if (boost > 0) {
                 int[] eff = calcEffective(floor, boost);
-                // 기본값이 달라진 항목은 색상으로 강조
-                line.append(formatStat("§a성공", rawS, eff[0]));
-                line.append("  ");
-                line.append(formatStat("§c실패", rawF, eff[1]));
-                line.append("  ");
-                line.append(formatStat("§5리셋", rawR, eff[2]));
+                int deltaS = eff[0] - rawS; // 양수
+                int deltaF = eff[1] - rawF; // 음수
+                // 성공: 적용확률(+delta%)
+                sVal = deltaS > 0 ? eff[0] + "% §8(§a+" + deltaS + "%§8)§a" : rawS + "%";
+                // 실패: 적용확률(-delta%)
+                fVal = deltaF < 0 ? eff[1] + "% §8(§c" + deltaF + "%§8)§c" : rawF + "%";
+                rVal = rawR + "%";
             } else {
-                line.append("§a성공 §f").append(rawS).append("%");
-                line.append("  §c실패 §f").append(rawF).append("%");
-                line.append("  §5리셋 §f").append(rawR).append("%");
+                sVal = rawS + "%";
+                fVal = rawF + "%";
+                rVal = rawR + "%";
             }
 
-            // 잭팟 정보 (리셋 층만)
-            if (floor.isResetFloor() && floor.getJackpotChance() > 0) {
-                line.append(String.format("  §6잭팟 §e%.1f%%§6(풀의 §e%.0f%%§6 지급)",
-                        floor.getJackpotChance(), floor.getJackpotPayoutPercent()));
+            if (floor.isResetFloor()) {
+                String label = String.format("★ %d층(리셋)", floorNum);
+                player.sendMessage(String.format("§d  %-11s §a%-14s §c%-14s §5%-10s",
+                        label, sVal, fVal, rVal));
+                if (floor.getJackpotChance() > 0) {
+                    player.sendMessage(String.format("§8             └ §6잭팟 §e%.1f%% §6확률 / 풀의 §e%.0f%% §6지급",
+                            floor.getJackpotChance(), floor.getJackpotPayoutPercent()));
+                }
+            } else {
+                String label = String.format("  %d층", floorNum);
+                player.sendMessage(String.format("§f  %-12s §a%-14s §c%-14s §5%-10s",
+                        label, sVal, fVal, rVal));
             }
-
-            player.sendMessage(line.toString());
         }
 
         // ── 잭팟 현황 ──
         if (tower.getJackpotConfig().isEnabled()) {
             double jackpotAmount = plugin.getJackpotManager().getAmount(tower.getId());
-            player.sendMessage("§7§m                                        ");
-            player.sendMessage("§6현재 잭팟: §e"
-                    + plugin.getVaultHook().format(jackpotAmount)
+            player.sendMessage("§7§m                                              ");
+            player.sendMessage("§6  현재 잭팟: §e" + plugin.getVaultHook().format(jackpotAmount)
                     + " §8(그룹: " + tower.getGroupId() + ")");
         }
 
-        player.sendMessage("§7§m                                        ");
+        player.sendMessage("§6§m                                              ");
     }
 
     /**
@@ -154,18 +150,7 @@ public class ChartCommand implements CommandExecutor, TabCompleter {
         return new int[]{effSuccess, effFail, effReset};
     }
 
-    /**
-     * 변경 여부에 따라 색상 강조.
-     * 예: "§a성공 §f75%§8(→83%)"
-     */
-    private static String formatStat(String label, int base, int effective) {
-        if (base == effective) {
-            return label + " §f" + base + "%";
-        }
-        return label + " §8" + base + "%§7(→§f" + effective + "§7%)";
-    }
-
-    // ──────────────────── 리전 자동 감지 ────────────────────
+    //──────────────────── 리전 자동 감지 ────────────────────
 
     private List<TowerConfig> getTowersAtPlayer(Player player) {
         try {
@@ -194,19 +179,25 @@ public class ChartCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    // ──────────────────── 부스트 계산 ────────────────────
+    // ──────────────────── 부스트 감지 ────────────────────
 
-    /** 플레이어가 보유한 부스트 아이템 합산 (소모하지 않음) */
-    private double calcPlayerBoost(Player player, TowerConfig tower) {
-        double total = 0;
+    /**
+     * 플레이어가 손에 든 아이템이 타워 부스트 아이템과 일치하는지 확인.
+     * 일치하고 보유 수량도 충분하면 해당 BoostItem 반환, 아니면 null.
+     */
+    private BoostItem getHeldBoostItem(Player player, TowerConfig tower) {
+        org.bukkit.inventory.ItemStack held = player.getInventory().getItemInMainHand();
+        if (held == null || held.getType() == org.bukkit.Material.AIR) return null;
         for (BoostItem bi : tower.getBoostItems()) {
+            if (held.getType() != bi.getMaterial()) continue;
+            // 인벤토리 전체에서 수량 확인
             int count = 0;
             for (var item : player.getInventory().getContents()) {
                 if (item != null && item.getType() == bi.getMaterial()) count += item.getAmount();
             }
-            if (count >= bi.getAmount()) total += bi.getBoost();
+            if (count >= bi.getAmount()) return bi;
         }
-        return total;
+        return null;
     }
 
     // ──────────────────── 탭 완성 ────────────────────

@@ -14,21 +14,23 @@ import java.util.Map;
 public class JackpotTowerConfig {
 
     private final boolean enabled;
-    private final double initialAmount;        // 초기 잭팟 금액 (저장된 데이터 없을 때 사용)
-    private final double contributionPercent;  // 입장료 중 잭팟 풀에 적립되는 비율 (%)
-    private final BlockPos hologramPos;        // 홀로그램 위치
-    private final List<String> winnerCommands; // 당첨자 1명 대상 커맨드 ({player}=당첨자, {amount}=금액)
-    private final List<String> regionCommands; // 리전 내 전원 대상 커맨드 ({player}=각 플레이어, {amount}=금액)
-    private final List<String> regionMessages; // 리전 내 전원에게 보내는 메시지 ({player}=당첨자, {amount}=금액)
-    private final List<ItemStack> winnerItems; // 구역 내 플레이어에게 지급할 아이템
+    private final double initialAmount;           // 초기 잭팟 금액 (저장된 데이터 없을 때 사용)
+    private final double contributionPercent;     // 입장료 중 잭팟 풀에 적립되는 비율 (%)
+    private final double lastFloorJackpotPayout;  // 마지막 층 클리어 시 풀에서 지급할 비율 (%)
+    private final BlockPos hologramPos;           // 홀로그램 위치
+    private final List<String> winnerCommands;    // 당첨자 1명 대상 커맨드 ({player}=당첨자, {amount}=금액)
+    private final List<String> regionCommands;    // 리전 내 전원 대상 커맨드 ({player}=각 플레이어, {amount}=금액)
+    private final List<String> regionMessages;    // 리전 내 전원에게 보내는 메시지 ({player}=당첨자, {amount}=금액)
+    private final List<ItemStack> winnerItems;    // 구역 내 플레이어에게 지급할 아이템
 
     public JackpotTowerConfig(boolean enabled, double initialAmount, double contributionPercent,
-                               BlockPos hologramPos, List<String> winnerCommands,
-                               List<String> regionCommands, List<String> regionMessages,
-                               List<ItemStack> winnerItems) {
+                               double lastFloorJackpotPayout, BlockPos hologramPos,
+                               List<String> winnerCommands, List<String> regionCommands,
+                               List<String> regionMessages, List<ItemStack> winnerItems) {
         this.enabled = enabled;
         this.initialAmount = initialAmount;
         this.contributionPercent = contributionPercent;
+        this.lastFloorJackpotPayout = lastFloorJackpotPayout;
         this.hologramPos = hologramPos;
         this.winnerCommands = winnerCommands;
         this.regionCommands = regionCommands;
@@ -42,6 +44,7 @@ public class JackpotTowerConfig {
         boolean enabled = section.getBoolean("enabled", false);
         double initialAmount = section.getDouble("initial-amount", 10000.0);
         double contributionPercent = section.getDouble("contribution-percent", 10.0);
+        double lastFloorJackpotPayout = section.getDouble("last-floor-payout", 100.0);
 
         // 홀로그램 위치
         BlockPos hologramPos = null;
@@ -81,16 +84,18 @@ public class JackpotTowerConfig {
         }
 
         return new JackpotTowerConfig(enabled, initialAmount, contributionPercent,
-                hologramPos, winnerCommands, regionCommands, regionMessages, winnerItems);
+                lastFloorJackpotPayout, hologramPos,
+                winnerCommands, regionCommands, regionMessages, winnerItems);
     }
 
     public static JackpotTowerConfig disabled() {
-        return new JackpotTowerConfig(false, 0, 0, null, List.of(), List.of(), List.of(), List.of());
+        return new JackpotTowerConfig(false, 0, 0, 100.0, null, List.of(), List.of(), List.of(), List.of());
     }
 
     public boolean isEnabled() { return enabled; }
     public double getInitialAmount() { return initialAmount; }
     public double getContributionPercent() { return contributionPercent; }
+    public double getLastFloorJackpotPayout() { return lastFloorJackpotPayout; }
     public BlockPos getHologramPos() { return hologramPos; }
     public List<String> getWinnerCommands() { return winnerCommands; }
     public List<String> getRegionCommands() { return regionCommands; }

@@ -52,7 +52,7 @@ public class GameSession {
         if (player == null) { endGame(EndReason.FORCE_STOP); return; }
 
         player.sendTitle("§6럭키 타워", "§e" + tower.getId() + " §7| §f도전 시작!", 10, 40, 10);
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
+        playSoundInRegion(Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
         sendInfo(player, "§6[ 럭키타워 시작 ] §r§e" + tower.getId());
         sendInfo(player, "§7부스트: §f+" + String.format("%.1f", boostPercent) + "% §8| §7총 §f" + tower.getFloors().size() + "§7층");
 
@@ -74,26 +74,6 @@ public class GameSession {
         FloorConfig floor = tower.getFloor(currentFloor);
         if (floor == null) { endGame(EndReason.FORCE_STOP); return; }
 
-        // 리셋 층 도달 시 — 직전 구간 누적 보상 즉시 지급 후 초기화 (첫 층 제외)
-        if (floor.isResetFloor() && currentFloor != tower.getFloors().firstKey()) {
-            if (!pendingRewards.isEmpty()) {
-                int count = pendingRewards.size();
-                plugin.getRewardManager().giveRewards(player, new ArrayList<>(pendingRewards));
-                pendingRewards.clear();
-                sendInfo(player, "§6[ 리셋 구간 ] §f" + count + "§7개 보상 지급!");
-                player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.9f, 1.0f);
-            }
-            lastResetFloor = currentFloor;
-
-            // ── 잭팟 판정 (리셋 층 도달 시) ──
-            boolean jackpotWon = plugin.getJackpotManager().rollJackpot(player, tower.getId(), currentFloor);
-            if (jackpotWon) {
-                sendInfo(player, "§6★ 잭팟 당첨! 게임을 종료합니다. ★");
-                endGame(EndReason.COMPLETE);
-                return;
-            }
-        }
-
         // 램프 업데이트
         plugin.getLightManager().highlightFloor(tower, currentFloor);
 
@@ -103,14 +83,12 @@ public class GameSession {
                 buildChanceDisplay(floor),
                 5, 30, 5
         );
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.8f, 1.2f);
+        playSoundInRegion(Sound.BLOCK_NOTE_BLOCK_HAT, 0.8f, 1.2f);
 
         // 확률 판정
-        // 부스트는 실패 확률에서 차감하여 성공 확률로 이전 (전체 합 100% 유지)
         int[] eff = calcEffective(floor);
         int effectiveSuccess = eff[0];
         int effectiveFail    = eff[1];
-        // eff[2] = effectiveReset (나머지)
 
         int roll = RANDOM.nextInt(100); // 0~99
 
@@ -130,13 +108,22 @@ public class GameSession {
         // 리전 버프 적용
         applyRegionBuffs(floor);
 
+        // 리셋 층계 통과 → 체크포인트 갱신 (보상 지급 없음, 게임 종료 시 일괄 지급)
+        if (floor.isResetFloor()) {
+            lastResetFloor = currentFloor;
+            sendInfo(player, "§6[ 체크포인트 ] §f" + currentFloor + "층 통과! §7(누적 §e" + pendingRewards.size() + "§7개)");
+        }
+
         // 최고 층 도달
         if (currentFloor >= tower.getMaxFloor()) {
             player.sendTitle("§6★ ALL CLEAR! ★", "§e모든 층 클리어!", 5, 60, 15);
-            player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.5f);
+            playSoundInRegion(Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.5f);
             sendInfo(player, "§6★ 모든 층 클리어! ★");
-            // 금 블럭 위 음표블록(BELL) 5번 반복
-            playBellFiveTimes(player);
+            playBellFiveTimes();
+            // 마지막 층 클리어 → 잭팟 100% 자동 발동
+            if (tower.getJackpotConfig().isEnabled()) {
+                plugin.getJackpotManager().triggerLastFloorJackpot(player, tower.getId());
+            }
             endGame(EndReason.COMPLETE);
             return;
         }
@@ -146,9 +133,8 @@ public class GameSession {
                 "§f" + currentFloor + "층 §7→ §f" + (currentFloor + 1) + "층",
                 5, 30, 10
         );
-        // 층 올라갈 때 : 기본 성공 사운드 + 음표블록(HARP) 층마다 1 반음씩 상승
-        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 1f, getFloorNotePitch(currentFloor));
+        playSoundInRegion(Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+        playSoundInRegion(Sound.BLOCK_NOTE_BLOCK_HARP, 1f, getFloorNotePitch(currentFloor));
         sendInfo(player, "§a[ 성공 ] §f" + currentFloor + "층 통과! §7누적 보상: §e" + pendingRewards.size() + "개");
 
         currentFloor++;
@@ -157,43 +143,56 @@ public class GameSession {
 
     // ───────── 실패 ─────────
     private void handleFail(Player player, FloorConfig floor) {
-        int failRewardRoll = RANDOM.nextInt(100);
-        int failFullChance = plugin.getConfig().getInt("settings.fail-full-reward-chance", 80);
-
         // 0층 실패 전용: 호박 위 음표블록(DIDGERIDOO) 사운드
         if (currentFloor == tower.getFloors().firstKey()) {
-            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO, 1f, 0.5f);
+            playSoundInRegion(Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO, 1f, 0.5f);
         }
 
-        if (failRewardRoll < failFullChance) {
-            // 80% - 누적 보상 전부 수령
-            player.sendTitle("§c✘ 실패!", "§f누적 보상을 수령합니다.", 5, 40, 10);
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 0.8f);
-            sendInfo(player, "§c[ 실패 ] §7누적 보상 §f" + pendingRewards.size() + "§7개 전부 지급!");
-            endGame(EndReason.FAIL_FULL);
-        } else {
-            // 20% - 현재 층 보상만 수령, 이전 누적 초기화
-            List<Reward> currentFloorRewards = new ArrayList<>(floor.getRewards());
-            pendingRewards.clear();
-            pendingRewards.addAll(currentFloorRewards);
-            player.sendTitle("§4✘ 대실패!", "§c이전 보상 초기화! 현재 층 보상만 지급.", 5, 50, 10);
-            player.playSound(player.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.5f, 0.6f);
-            sendInfo(player, "§4[ 대실패 ] §c누적 보상 초기화! §7현재 층 보상만 지급.");
+        // ── ① 잭팟 판정: 리셋 층계 fail이면 행운/대실패와 무관하게 항상 체크 ──
+        if (floor.isResetFloor() && tower.getJackpotConfig().isEnabled()) {
+            if (plugin.getJackpotManager().rollJackpot(player, tower.getId(), currentFloor)) {
+                sendInfo(player, "§6[ 잭팟 ] §f실패했지만 §6★ 잭팟 당첨! ★");
+                endGame(EndReason.FAIL_PARTIAL); // 잭팟 당첨이면 보상도 지급
+                return;
+            }
+        }
+
+        // ── ② fail-full-reward-chance 판정: 모든 실패에 적용 ──
+        int fullRewardChance = plugin.getConfig().getInt("settings.fail-full-reward-chance", 80);
+        int roll = RANDOM.nextInt(100); // 0~99
+
+        if (roll < fullRewardChance) {
+            // 실패: 누적 보상 획득
+            player.sendTitle("§c✘ 실패!", "§7누적 보상을 수령합니다.", 5, 40, 10);
+            playSoundInRegion(Sound.BLOCK_GLASS_BREAK, 1f, 0.8f);
+            sendInfo(player, "§c[ 실패 ] §7도전 실패! 누적 보상 지급.");
             endGame(EndReason.FAIL_PARTIAL);
+
+        } else {
+            // 대실패: 현재 층 보상만 지급 후 누적 보상 전부 초기화
+            List<Reward> currentFloorReward = new ArrayList<>(floor.getRewards());
+            pendingRewards.clear();
+            pendingRewards.addAll(currentFloorReward);
+
+            player.sendTitle("§4✘ 대실패!", "§c현재 층 보상만 획득 후 초기화됩니다.", 5, 50, 10);
+            playSoundInRegion(Sound.ENTITY_VILLAGER_NO, 1f, 0.6f);
+            sendInfo(player, "§c[ 대실패 ] §f현재 층 보상만 지급 후 누적 보상 초기화.");
+            endGame(EndReason.FAIL_FULL);
         }
     }
 
     // ───────── 리셋 이벤트 ─────────
     private void handleResetEvent(Player player) {
-        // 보상은 유지 — 위치만 마지막 리셋 층계로 복귀
         int returnFloor = lastResetFloor;
+
+        pendingRewards.clear();
         player.sendTitle(
                 "§5↺ 리셋 이벤트!",
-                "§d" + currentFloor + "층 §7→ §d" + returnFloor + "층으로 복귀",
+                "§d" + currentFloor + "층 §7→ §d" + returnFloor + "층으로 복귀 §c(보상 초기화)",
                 5, 50, 10
         );
-        player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 0.5f);
-        sendInfo(player, "§5[ 리셋 ] §d" + returnFloor + "층으로 복귀! §7(누적 §f" + pendingRewards.size() + "§7개 유지)");
+        playSoundInRegion(Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 0.5f);
+        sendInfo(player, "§5[ 리셋 ] §d" + returnFloor + "층으로 복귀! §c(모든 누적 보상 초기화)");
 
         currentFloor = returnFloor;
         scheduleNextRoll(-1);
@@ -217,11 +216,14 @@ public class GameSession {
 
         switch (reason) {
             case COMPLETE -> {
-                player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
+                playSoundInRegion(Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
                 sendInfo(player, "§6★ 럭키타워 완전 클리어! 모든 보상 지급 ★");
             }
-            case FAIL_FULL -> player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 1f, 1f);
-            case FAIL_PARTIAL -> player.playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 1f, 0.8f);
+            case FAIL_FULL -> {
+                playSoundInRegion(Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.5f, 0.8f);
+                playSoundInRegion(Sound.ENTITY_VILLAGER_NO, 1f, 0.5f);
+            }
+            case FAIL_PARTIAL -> playSoundInRegion(Sound.BLOCK_GLASS_BREAK, 1f, 0.8f);
             case RESET_EVENT -> {}
             case FORCE_STOP -> {
                 sendInfo(player, "§c게임이 강제 종료되었습니다. 보상 미지급.");
@@ -268,11 +270,58 @@ public class GameSession {
         }
     }
 
+    // ───────── 리전 내 플레이어 목록 ─────────
+
+    private List<Player> getRegionPlayers() {
+        List<Player> result = new ArrayList<>();
+        try {
+            Player self = getPlayer();
+            if (self == null) return result;
+
+            RegionManager rm = WorldGuard.getInstance().getPlatform()
+                    .getRegionContainer()
+                    .get(BukkitAdapter.adapt(self.getWorld()));
+            if (rm == null) return result;
+
+            ProtectedRegion region = rm.getRegion(tower.getRegionId());
+            if (region == null) return result;
+
+            for (Player p : plugin.getServer().getOnlinePlayers()) {
+                if (!p.getWorld().equals(self.getWorld())) continue;
+                com.sk89q.worldedit.util.Location weLoc = BukkitAdapter.adapt(p.getLocation());
+                if (rm.getApplicableRegions(weLoc.toVector().toBlockPoint())
+                        .getRegions().contains(region)) {
+                    result.add(p);
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("리전 플레이어 조회 실패: " + e.getMessage());
+            // fallback: 세션 플레이어만
+            Player self = getPlayer();
+            if (self != null) result.add(self);
+        }
+        return result;
+    }
+
+    /**
+     * 리전 내 모든 플레이어에게 사운드 재생.
+     * 각 플레이어 위치에서 재생하므로 거리 감쇠 없이 들림.
+     */
+    private void playSoundInRegion(Sound sound, float volume, float pitch) {
+        for (Player p : getRegionPlayers()) {
+            p.playSound(p.getLocation(), sound, volume, pitch);
+        }
+        // 리전 밖에 있어도 세션 플레이어 본인은 반드시 들림
+        Player self = getPlayer();
+        if (self != null && !getRegionPlayers().contains(self)) {
+            self.playSound(self.getLocation(), sound, volume, pitch);
+        }
+    }
+
     // ───────── 사운드 유틸 ─────────
 
     /**
      * 층마다 1 반음씩 증가하는 음표블록 피치 반환.
-     * floor 0 → note 6 (약 0.71), floor 14 → note 20 (약 1.59)
      */
     private float getFloorNotePitch(int floor) {
         int note = Math.min(floor + 6, 24);
@@ -280,22 +329,25 @@ public class GameSession {
     }
 
     /**
-     * 금 블럭 위 음표블록(BELL) 소리를 0.4초 간격으로 5번 재생.
-     * 매번 피치가 조금씩 올라가 화려한 완주 효과 연출.
+     * 금 블럭 위 음표블록(BELL) 소리를 0.4초 간격으로 5번 재생 (리전 내 전체).
      */
-    private void playBellFiveTimes(Player player) {
+    private void playBellFiveTimes() {
+        // 재생 시점의 리전 플레이어 스냅샷
+        List<Player> regionPlayers = getRegionPlayers();
         new BukkitRunnable() {
             int count = 0;
             @Override
             public void run() {
-                Player p = getPlayer();
-                if (p == null || count >= 5) { cancel(); return; }
-                // 피치: 1.0 → 1.15 → 1.30 → 1.45 → 1.60
+                if (count >= 5) { cancel(); return; }
                 float pitch = 1.0f + count * 0.15f;
-                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1f, pitch);
+                for (Player p : regionPlayers) {
+                    if (p.isOnline()) {
+                        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1f, pitch);
+                    }
+                }
                 count++;
             }
-        }.runTaskTimer(plugin, 0L, 8L); // 8틱(0.4초) 간격
+        }.runTaskTimer(plugin, 0L, 8L);
     }
 
     // ───────── 유틸 ─────────
@@ -309,10 +361,8 @@ public class GameSession {
         int rawSuccess = floor.getSuccessChance();
         int rawFail    = floor.getFailChance();
 
-        // 실패 확률에서 최대한 차감, 나머지는 버림 (리셋 확률은 변경 안 함)
         int deducted      = Math.min(boost, rawFail);
         int effSuccess    = Math.min(95, rawSuccess + deducted);
-        // 성공이 95 캡에 걸린 경우 실제 이전량 재계산
         int actualGain    = effSuccess - rawSuccess;
         int effFail       = rawFail - actualGain;
         int effReset      = 100 - effSuccess - effFail;
