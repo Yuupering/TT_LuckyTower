@@ -67,15 +67,22 @@ public class ChartCommand implements CommandExecutor, TabCompleter {
     // ──────────────────── 확률표 출력 ────────────────────
 
     private void printChart(Player player, TowerConfig tower) {
-        // 손에 든 아이템이 이 타워의 부스트 아이템과 일치하는지 확인
-        BoostItem heldBoost = getHeldBoostItem(player, tower);
-        double boost = (heldBoost != null) ? heldBoost.getBoost() : 0;
+        // ── 부스트 감지: 슈퍼 티켓 우선, 없으면 손에 든 부스트 아이템 ──
+        boolean superTicketEnabled = plugin.getConfig().getBoolean("settings.super-ticket-enabled", true);
+        boolean hasSuperTicket = superTicketEnabled
+                && plugin.getUserDataManager().getSuperTickets(player.getUniqueId()) > 0;
+
+        BoostItem heldBoost = hasSuperTicket ? null : getHeldBoostItem(player, tower);
+        double boost = hasSuperTicket ? 10.0 : (heldBoost != null ? heldBoost.getBoost() : 0);
 
         // ── 헤더 ──
         player.sendMessage("§6§m                                              ");
         player.sendMessage("§6  [ " + tower.getId() + " ]  §7리전: §f" + tower.getRegionId()
                 + "  §7입장료: §f" + plugin.getVaultHook().format(tower.getEntryFeeVault()));
-        if (boost > 0) {
+        if (hasSuperTicket) {
+            int remaining = plugin.getUserDataManager().getSuperTickets(player.getUniqueId());
+            player.sendMessage("§6  ★ §e슈퍼 티켓 보유 §7(" + remaining + "장) §6→ 성공 확률 §a+10% §6적용");
+        } else if (boost > 0) {
             player.sendMessage("§e  ※ §f" + heldBoost.getMaterial().name()
                     + " §e부스트 +" + String.format("%.1f", boost) + "% 적용 중");
         }
