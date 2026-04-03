@@ -12,6 +12,7 @@ import org.thetower.tt_luckytower.listener.TowerListener;
 import org.thetower.tt_luckytower.manager.LightManager;
 import org.thetower.tt_luckytower.manager.RewardManager;
 import org.thetower.tt_luckytower.manager.TowerManager;
+import org.thetower.tt_luckytower.manager.UserDataManager;
 
 public class LuckyTowerPlugin extends JavaPlugin {
 
@@ -25,6 +26,7 @@ public class LuckyTowerPlugin extends JavaPlugin {
     private RewardManager rewardManager;
     private LightManager lightManager;
     private JackpotManager jackpotManager;
+    private UserDataManager userDataManager;
 
     @Override
     public void onEnable() {
@@ -48,6 +50,7 @@ public class LuckyTowerPlugin extends JavaPlugin {
         dhHook.setup();
 
         // ── 매니저 초기화 ──
+        userDataManager = new UserDataManager(this);
         lightManager = new LightManager(this);
         rewardManager = new RewardManager(this);
         towerManager = new TowerManager(this);
@@ -93,4 +96,5 @@ public class LuckyTowerPlugin extends JavaPlugin {
     public RewardManager getRewardManager() { return rewardManager; }
     public LightManager getLightManager() { return lightManager; }
     public JackpotManager getJackpotManager() { return jackpotManager; }
+    public UserDataManager getUserDataManager() { return userDataManager; }
 }

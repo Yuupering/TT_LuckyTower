@@ -119,6 +119,7 @@ public class LuckyTowerCommand implements CommandExecutor, TabCompleter {
             }
             case "start"   -> handleStart(sender, args);
             case "jackpot" -> handleJackpot(sender, args);
+            case "ticket"  -> handleTicket(sender, args);
             default -> sendHelp(sender);
         }
         return true;
@@ -304,6 +305,34 @@ public class LuckyTowerCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    // ─── /lt ticket ───
+    private void handleTicket(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage("§c사용법: /lt ticket <유저명> <티켓수>");
+            return;
+        }
+        var target = plugin.getServer().getPlayer(args[1]);
+        if (target == null) {
+            sender.sendMessage("§c온라인 플레이어를 찾을 수 없습니다: " + args[1]);
+            return;
+        }
+        int amount;
+        try {
+            amount = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage("§c티켓 수는 숫자여야 합니다.");
+            return;
+        }
+        if (amount < 0) {
+            sender.sendMessage("§c티켓 수는 0 이상이어야 합니다.");
+            return;
+        }
+        plugin.getUserDataManager().addTickets(target.getUniqueId(), amount);
+        int total = plugin.getUserDataManager().getTickets(target.getUniqueId());
+        sender.sendMessage("§a[럭키타워] §f" + target.getName() + "§a에게 티켓 §f" + amount + "장 §a지급. 보유: §f" + total + "장");
+        target.sendMessage("§a[럭키타워] 티켓 §f" + amount + "장 §a지급! 현재 보유: §f" + total + "장");
+    }
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage("§6[럭키타워] 커맨드 도움말");
         sender.sendMessage("§f/lt reload §7- 설정 리로드");
@@ -313,6 +342,7 @@ public class LuckyTowerCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§f/lt setblock <타워ID> §7- 상호작용 블록 설정");
         sender.sendMessage("§f/lt setlight <타워ID> <층> §7- 층 램프 블록 등록");
         sender.sendMessage("§f/lt jackpot §7- 잭팟 관리");
+        sender.sendMessage("§f/lt ticket <유저명> <티켓수> §7- 무료 이용 티켓 지급");
     }
 
     @Override
@@ -320,14 +350,14 @@ public class LuckyTowerCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("tt.luckytower.admin")) return List.of();
 
         if (args.length == 1) {
-            return List.of("reload", "info", "stop", "start", "setblock", "setlight", "jackpot").stream()
+            return List.of("reload", "info", "stop", "start", "setblock", "setlight", "jackpot", "ticket").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
 
         if (args.length == 2) {
             return switch (args[0].toLowerCase()) {
-                case "stop" -> plugin.getServer().getOnlinePlayers().stream()
+                case "stop", "ticket" -> plugin.getServer().getOnlinePlayers().stream()
                         .map(Player::getName)
                         .filter(n -> n.toLowerCase().startsWith(args[1].toLowerCase()))
                         .collect(Collectors.toList());

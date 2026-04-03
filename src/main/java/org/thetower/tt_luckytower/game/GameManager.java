@@ -46,10 +46,15 @@ public class GameManager {
             return false;
         }
 
-        if (!plugin.getVaultHook().has(player, tower.getEntryFeeVault())) {
-            player.sendMessage("§c잔액 부족! 입장료: §f"
-                    + plugin.getVaultHook().format(tower.getEntryFeeVault()));
-            return false;
+        // 티켓 보유 시 무료 입장
+        boolean usedTicket = plugin.getUserDataManager().useTicket(player.getUniqueId());
+
+        if (!usedTicket) {
+            if (!plugin.getVaultHook().has(player, tower.getEntryFeeVault())) {
+                player.sendMessage("§c잔액 부족! 입장료: §f"
+                        + plugin.getVaultHook().format(tower.getEntryFeeVault()));
+                return false;
+            }
         }
 
         // 선택된 부스트 아이템 소모
@@ -67,10 +72,14 @@ public class GameManager {
             }
         }
 
-        plugin.getVaultHook().withdraw(player, tower.getEntryFeeVault());
-        player.sendMessage("§7입장료 차감: §f" + plugin.getVaultHook().format(tower.getEntryFeeVault()));
-
-        plugin.getJackpotManager().contribute(tower.getId(), tower.getEntryFeeVault());
+        if (usedTicket) {
+            int remaining = plugin.getUserDataManager().getTickets(player.getUniqueId());
+            player.sendMessage("§a[럭키타워] 티켓 사용! 무료 입장 §7(남은 티켓: §f" + remaining + "장§7)");
+        } else {
+            plugin.getVaultHook().withdraw(player, tower.getEntryFeeVault());
+            player.sendMessage("§7입장료 차감: §f" + plugin.getVaultHook().format(tower.getEntryFeeVault()));
+            plugin.getJackpotManager().contribute(tower.getId(), tower.getEntryFeeVault());
+        }
 
         GameSession session = new GameSession(plugin, player.getUniqueId(), tower, boostPercent);
         sessions.put(player.getUniqueId(), session);
