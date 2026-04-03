@@ -12,6 +12,7 @@
 - WorldGuard 리전 기반 구역 버프
 - `/lt start` 명령어로 타워 자동 설치
 - 티켓 시스템 (보유 시 1회 무료 입장)
+- 슈퍼 티켓 시스템 (무료 입장 + 성공 확률 +10%)
 
 - Minecraft : 1.20.1
 - Java : 17
@@ -54,6 +55,7 @@
 | 자동 설치 | `/lt start` 명령어로 레드스톤 램프 + 버튼 자동 배치 |
 | 확률표 | `/확률표` 명령어로 층별 확률 조회 |
 | 티켓 시스템 | 티켓 보유 시 입장료 없이 1회 무료 이용 |
+| 슈퍼 티켓 시스템 | 무료 입장 + 성공 확률 +10% / 기존 부스트 아이템과 중첩 불가 |
 
 ---
 
@@ -137,6 +139,7 @@ effReset   = 100% - effSuccess% - effFail%
 | `/lt jackpot set-amount <타워ID> <금액>` | 잭팟 풀 금액 직접 설정 |
 | `/lt jackpot sethologram <타워ID>` | 현재 위치를 잭팟 홀로그램 위치로 설정 |
 | `/lt ticket <플레이어> <티켓수>` | 플레이어에게 무료 입장 티켓 지급 |
+| `/lt superticket <플레이어> <티켓수>` | 슈퍼 티켓 지급 (무료 입장 + 성공 확률 +10%) |
 
 ### `/lt start` 자동 설치
 
@@ -159,6 +162,8 @@ settings:
   floor-delay-ticks: 40
   # 게임 시작 전 카운트다운 (틱)
   start-delay-ticks: 60
+  # 슈퍼 티켓 기능 활성화 여부 (false = 비활성화)
+  super-ticket-enabled: true
 ```
 
 ---
@@ -298,17 +303,38 @@ group: "main_group"
 
 플레이어에게 티켓을 지급하면 입장료 없이 1회 무료로 럭키타워를 이용할 수 있습니다.
 
+### 일반 티켓
+
 - 티켓 1장 = 1회 무료 입장 (입장료 차감 없음)
-- 티켓 사용 시 잭팟 풀 적립도 진행되지 않음
-- 티켓 데이터는 `plugins/TT_LuckyTower/userdata/<UUID>.yml`에 저장
+- 티켓 사용 시 잭팟 풀 적립 없음
+- 부스트 아이템 선택 가능
 
 ```
 /lt ticket <플레이어> <티켓수>
 ```
 
+### 슈퍼 티켓
+
+- 슈퍼 티켓 1장 = 1회 무료 입장 + **성공 확률 +10%** 자동 적용
+- 기존 부스트 아이템과 **중첩 불가** (슈퍼 티켓이 우선 적용됨)
+- 티켓 사용 시 잭팟 풀 적립 없음
+- `/확률표` 에서 슈퍼 티켓 보유 시 +10% 적용된 확률로 표시
+- `config.yml`의 `settings.super-ticket-enabled: false` 로 기능 비활성화 가능
+
+```
+/lt superticket <플레이어> <티켓수>
+```
+
+### 적용 우선순위
+
+> **슈퍼 티켓** → 일반 티켓 → 유료 입장
+
+### 데이터 저장
+
 ```yaml
 # plugins/TT_LuckyTower/userdata/<UUID>.yml
 tickets: 3
+super-tickets: 1
 ```
 
 ---
